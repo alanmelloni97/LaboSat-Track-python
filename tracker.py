@@ -5,6 +5,7 @@ from skyfield.api import load
 
 # https://celestrak.com/NORAD/elements/active.txt
 
+#git test
 start_time = time.time()
 ts = load.timescale()
 myLat=-34.5873528
