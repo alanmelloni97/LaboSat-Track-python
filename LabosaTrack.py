@@ -1,0 +1,216 @@
+import orbit_prediction as op
+from skyfield.api import load, wgs84
+import time
+import datetime
+import pandas as pd
+import numpy as np
+pd.options.mode.chained_assignment = None  # default='warn'
+from tqdm import tqdm
+import serial
+import math
+    
+    
+def Orbit2steps(orbitDf,stepperRes):
+    del orbitDf['Latitude']
+    del orbitDf['Longitude']
+    del orbitDf['Distance']
+    del orbitDf['Height']
+    orbitDf['dAlt'] = (orbitDf['Altitude'] - orbitDf['Altitude'].shift(1)).fillna(0)
+    orbitDf['dAz'] = (orbitDf['Azimuth'] - orbitDf['Azimuth'].shift(1)).fillna(0)
+    # orbitDf['dAlt']=orbitDf['dAlt'].fillna(0)
+    # orbitDf['dAz']=orbitDf['dAz'].fillna(0)
+    orbitDf['Step Alt']=0
+    orbitDf['Step Az']=0
+    orbitDf.index.name="Index"
+    
+    dirSetted= False
+    azStepCount,azAngle,altStepCount,altAngle=0,0,0,0
+    for ind in tqdm(orbitDf.index):
+        
+        if abs(orbitDf['dAz'][ind])>300:
+            if(orbitDf['dAz'][ind])>0:
+                orbitDf['dAz'][ind]-=360
+            if(orbitDf['dAz'][ind])<0:
+                orbitDf['dAz'][ind]+=360
+            
+        azAngle+=abs(orbitDf['dAz'][ind])
+        if azAngle>=stepperRes:
+            azStepCount+=1
+            azAngle=azAngle-stepperRes
+            orbitDf['Step Az'][ind]=1
+    
+        altAngle+=abs(orbitDf['dAlt'][ind])
+        if altAngle>=stepperRes:
+            altStepCount+=1
+            altAngle=altAngle-stepperRes
+            orbitDf['Step Alt'][ind]=1
+       
+        if orbitDf['dAlt'][ind]<0 and dirSetted==False:
+            AltDirChange=orbitDf['Time'][ind]
+            dirSetted=True
+           
+        if orbitDf['Step Alt'][ind]==0 and orbitDf['Step Az'][ind]==0:
+            orbitDf.drop([ind],axis=0,inplace=True)
+            
+    startData={'Azimuth':orbitDf['Azimuth'].iloc[0],'Altitude':orbitDf['Altitude'].iloc[0],'AzDir':int(np.sign(orbitDf['dAz'].iloc[0])),'AltDir Change':AltDirChange}
+    startDf = pd.DataFrame(startData,index=[0])
+    startDf.index.name="start"
+    return orbitDf,startDf,azStepCount,altStepCount
+    
+def PrintOrbitDf(orbitDf,startDf,azStepCount,altStepCount):
+    print("Start Azimuth:",startDf['Azimuth'][0])
+    print("Start Altitude:",startDf['Altitude'][0])
+    print("Azimuth direction",startDf['AzDir'][0])
+    print("Maximum Altitude",orbitDf['Altitude'].max())
+    print("Maximum dAlt",abs(orbitDf['dAlt']).max())
+    print("Maximum dAz",abs(orbitDf['dAz']).max())
+    print("Alt steps:",altStepCount)
+    print("Az steps:",azStepCount)
+
+def SatTrack(myLatLon,satName,stepperFullRes,microstepping,timeStep,minAltitude):
+    stepperRes=stepperFullRes/microstepping
+    
+    start_time = time.time()
+    ts = load.timescale()
+
+    TLEs=op.DownloadTLEs()
+    satellite=op.SelectSat(TLEs,satName)
+    print(satellite)
+    print("Time since epoch:",op.TimeSinceEpoch(satellite,ts.now()),end='\n\n')
+    
+    t0 = ts.now()
+    t1 = ts.from_datetime(t0.utc_datetime()+datetime.timedelta(days=1))
+    op.CalculatePasses(satellite,myLatLon,t0,t1,minAltitude)
+    bluffton = wgs84.latlon(myLatLon[0], myLatLon[1])
+    tx, events = satellite.find_events(bluffton, t0, t1, altitude_degrees=0)
+    
+    #%%
+# me aseguro que el primer timestamp sea el de rise
+    n=0
+    while events[n]!=0:
+        n+=1
+    taux=tx.utc_datetime()
+    taux=taux[n+2]-taux[n]
+    orbitDf=op.PredictOrbit(satellite,myLatLon,tx[n],taux.seconds,timeStep)
+    orbitDf,startDf,azStepCount,altStepCount=Orbit2steps(orbitDf,stepperRes)
+    
+    #%%
+    
+    del orbitDf['Altitude']
+    del orbitDf['Azimuth']
+    del orbitDf['dAlt']
+    del orbitDf['dAz']
+    
+    orbitDf=orbitDf.loc[~(orbitDf==0).all(axis=1)]
+    orbitDf.to_csv("csv/StepperSteps.csv")
+    startDf.to_csv("csv/StepperStart.csv")
+    
+    print()
+    print("Algorithm time:")
+    print("--- %s seconds ---" % (time.time() - start_time))
+    return orbitDf,startDf
+
+def Average(lst):
+    return sum(lst) / len(lst)
+
+def GetCompassData(serialDevice):
+    measures=[]  
+    measure='.'
+    while measure!='':    
+        serialDevice.write(b'S')
+        time.sleep(1)
+        measure = serialDevice.readline().decode('utf-8')
+        if measure!='':
+            measures.append(measure)
+    measures = [x.rstrip() for x in measures]   #remove '\r\n'
+    measures= [i.split() for i in measures]     #separate words
+    measuresX=[]
+    measuresY=[]
+    measuresZ=[]
+    for i in measures:  #get axis values
+        measuresX.append(int(i[1]))
+        measuresY.append(int(i[3]))
+        measuresZ.append(int(i[5]))
+    measuresX=Average(measuresX)
+    measuresY=Average(measuresY)
+    measuresZ=Average(measuresZ)
+    az= math.atan2(measuresX, measuresY) * 180 / math.pi;
+    if az<0: 
+        az=az+360
+    return az
+
+def OnlineTracker(stepsDf,startDf,stepperFullRes,microstepping):
+    stepperRes=stepperFullRes/microstepping
+    arduino = serial.Serial(port='COM7', baudrate=115200, timeout=1, write_timeout=1)
+    
+    print('Waiting for arduino start-up...')
+    time.sleep(5)
+
+    ### get azimuth start point
+    north=GetCompassData(arduino)                   #get magnetic north
+    print("megnetometer:",north,'°')
+    magneticDeclination=-9.56                       #magnetic delclination from https://www.magnetic-declination.com/
+    trueNorth=north-magneticDeclination           
+    azimuthStart=startDf["Azimuth"][0]-trueNorth
+    print('Azimuth:',azimuthStart,'°')
+    
+    if azimuthStart>180:
+        azimuthStart-=360
+    if azimuthStart<-180:
+        azimuthStart+=360
+        
+    # orient motors to initial angles
+    if azimuthStart>=0:
+        arduino.write(b'C')
+    if azimuthStart<0:
+        arduino.write(b'D')
+        
+    startStepsAz=azimuthStart/stepperRes
+    startStepsAlt=startDf["Altitude"][0]/stepperRes
+    
+    for step in range(0,abs(int(startStepsAz))):
+        arduino.write(b'A')
+        if step%100==00:
+            print("orienting Az",step)
+        time.sleep(1/1000)
+    
+    for step in range(0,int(startStepsAlt)):
+        arduino.write(b'B')
+        if step%100==00:
+            print("orienting Alt",step)
+        time.sleep(1/1000)
+        
+    #set azimuth direction
+    if startDf["AzDir"][0]==1:
+        arduino.write(b'C') #spin clockwise
+    if startDf["AzDir"][0]==-1:
+        arduino.write(b'D') #spin counterclockwise
+
+    contAz,contAlt,i=0,0,0
+    changedDir=False
+    print("waiting step...")
+    while i<=len(stepsDf.index)-1:
+        t=datetime.datetime.utcfromtimestamp(stepsDf["Time"].iloc[i])  #get utc time from UNIX time
+        while datetime.datetime.utcnow()<=t:
+            True
+        if stepsDf['Step Az'].iloc[i]==1:
+            arduino.write(b'A')
+            contAz+=1
+            print("Az",contAz)
+        if stepsDf['Step Alt'].iloc[i]==1:
+            arduino.write(b'B')
+            contAlt+=1
+            print("Alt",contAlt)
+        if changedDir==False and t>=datetime.datetime.utcfromtimestamp(startDf['AltDir Change'][0]):
+            arduino.write(b'F')
+            changedDir=True
+            print("alt direction change",i)
+        i+=1
+    
+    print("pasada finalizada")
+    print("Az steps:",contAz)
+    print("Alt steps:",contAlt)
+    
+    arduino.close()
+    
+        
