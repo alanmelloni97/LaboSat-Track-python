@@ -1,0 +1,11 @@
+__pycache__/
+active.txt
+active.txt.download
+active.txt.download2
+active.txt.download3
+active.txt.download4
+arduino/
+csv/
+de421.bsp
+pendiente.py
+tests/
