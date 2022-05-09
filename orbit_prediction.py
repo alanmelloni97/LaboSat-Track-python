@@ -86,20 +86,23 @@ def GetDistanceTwoCoords(lat1,lon1,lat2,lon2):
 def GetDatetimeFromUNIX(seconds):
     return datetime.datetime.fromtimestamp(seconds,datetime.timezone.utc)
 
-# def NextPass()
 
-def NextSatPasses(myLatLon,tStartOffset,tEndOffset,visibleAltitude):
+
+def NextSatPass(myLatLon,tStartOffset,minAltitude):
     ts = load.timescale()
     t0 = ts.from_datetime(ts.now().utc_datetime()+datetime.timedelta(minutes=tStartOffset))
-    t1 = ts.from_datetime(t0.utc_datetime()+datetime.timedelta(minutes=tEndOffset))
+    t1 = ts.from_datetime(t0.utc_datetime()+datetime.timedelta(minutes=5))
     TLEs=DownloadTLEs()
     bluffton = wgs84.latlon(myLatLon[0],myLatLon[1])
     for key in TLEs.keys():
         satellite=SelectSat(TLEs,key)
-        t, events = satellite.find_events(bluffton, t0, t1, altitude_degrees=visibleAltitude)
-        for ti, event in zip(t, events):
+        t, events = satellite.find_events(bluffton, t0, t1, altitude_degrees=minAltitude)
+        if len(events)==3:
             print(satellite)
-            name = ('rise above '+str(visibleAltitude)+'°', 'culminate', 'set below '+str(visibleAltitude)+'°')[event]
-            print(ti.utc_strftime('%Y %b %d %H:%M:%S'), name)
-    
-    
+            for ti, event in zip(t, events):
+                
+                name = ('rise above '+str(minAltitude)+'°', 'culminate', 'set below '+str(minAltitude)+'°')[event]
+                print(ti.utc_strftime('%Y %b %d %H:%M:%S'), name)
+            return satellite
+        
+NextSatPass((-30,-50),10,50)
