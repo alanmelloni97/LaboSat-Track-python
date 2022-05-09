@@ -25,6 +25,7 @@ def Orbit2steps(orbitDf,stepperRes):
     
     dirSetted= False
     azStepCount,azAngle,altStepCount,altAngle=0,0,0,0
+    print("converting orbit to steps")
     for ind in tqdm(orbitDf.index):
         
         if abs(orbitDf['dAz'][ind])>300:
@@ -55,7 +56,7 @@ def Orbit2steps(orbitDf,stepperRes):
     startData={'Azimuth':orbitDf['Azimuth'].iloc[0],'Altitude':orbitDf['Altitude'].iloc[0],'AzDir':int(np.sign(orbitDf['dAz'].iloc[0])),'AltDir Change':AltDirChange}
     startDf = pd.DataFrame(startData,index=[0])
     startDf.index.name="start"
-    return orbitDf,startDf,azStepCount,altStepCount
+    return orbitDf,startDf
     
 def PrintOrbitDf(orbitDf,startDf,azStepCount,altStepCount):
     print("Start Azimuth:",startDf['Azimuth'][0])
@@ -85,14 +86,14 @@ def SatTrack(myLatLon,satName,stepperFullRes,microstepping,timeStep,minAltitude)
     tx, events = satellite.find_events(bluffton, t0, t1, altitude_degrees=0)
     
     #%%
-# me aseguro que el primer timestamp sea el de rise
+    # me aseguro que el primer timestamp sea el de rise
     n=0
     while events[n]!=0:
         n+=1
     taux=tx.utc_datetime()
     taux=taux[n+2]-taux[n]
     orbitDf=op.PredictOrbit(satellite,myLatLon,tx[n],taux.seconds,timeStep)
-    orbitDf,startDf,azStepCount,altStepCount=Orbit2steps(orbitDf,stepperRes)
+    orbitDf,startDf=Orbit2steps(orbitDf,stepperRes)
     
     #%%
     
@@ -213,4 +214,6 @@ def OnlineTracker(stepsDf,startDf,stepperFullRes,microstepping):
     
     arduino.close()
     
+def OfflineTracking(stepsDf,startDf,stepperFullRes,microstepping):
+    True
         
