@@ -11,7 +11,7 @@ def DownloadTLEs():
     print("Downloading all active TLEs:")
     stations_url = 'https://celestrak.com/NORAD/elements/active.txt'
     satellites = load.tle_file(stations_url,reload=True)
-    print('Loaded', len(satellites), 'satellites')
+    print('Loaded', len(satellites), 'satellites',flush=True)
     print()
     return {sat.name: sat for sat in satellites}
 
@@ -60,7 +60,7 @@ def GetSatAltAzDist(sat,myLatLon,t):
     return alt,az,distance
 
 def PredictOrbit(sat,myLatLon,startTime,PeriodInSeconds,timeUnit):
-    print("calculating orbit...")
+    print("calculating orbit...",flush=True)
     df = pd.DataFrame(columns=["Time","Latitude","Longitude","Height","Altitude","Azimuth","Distance"])
 
     for i in tqdm(range(0,PeriodInSeconds*timeUnit)):

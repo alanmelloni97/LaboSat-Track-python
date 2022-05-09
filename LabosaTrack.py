@@ -74,7 +74,7 @@ def SatTrack(myLatLon,satName,stepperFullRes,microstepping,timeStep):
 
     TLEs=op.DownloadTLEs()
     satellite=op.SelectSat(TLEs,satName)
-    print("Time since epoch:",op.TimeSinceEpoch(satellite,ts.now()),end='\n\n')
+    print("Time since epoch:",op.TimeSinceEpoch(satellite,ts.now()),flush=True)
     
     t0 = ts.now()
     t1 = ts.from_datetime(t0.utc_datetime()+datetime.timedelta(days=1))
@@ -123,7 +123,8 @@ def OnlineTracker(stepsDf,startDf,stepperFullRes,microstepping):
     # trueNorth=north-magneticDeclination           
     # # azimuthStart=startDf["Azimuth"][0]-trueNorth
     azimuthStart=startDf["Azimuth"][0]
-    print('Azimuth:',azimuthStart,'°')
+    print('Azimuth:',azimuthStart,'°',flush=True)
+    
     
     if azimuthStart>180:
         azimuthStart-=360
@@ -139,13 +140,13 @@ def OnlineTracker(stepsDf,startDf,stepperFullRes,microstepping):
     startStepsAz=azimuthStart/stepperRes
     startStepsAlt=startDf["Altitude"][0]/stepperRes
     
-    for step in range(0,abs(int(startStepsAz))):
+    print('orienting Azimuth:',flush=True)
+    for step in tqdm(range(0,abs(int(startStepsAz)))):
         arduino.write(b'A')
-        if step%100==00:
-            print("orienting Az",step)
         time.sleep(1/1000)
     
-    for step in range(0,int(startStepsAlt)):
+    print('orienting Altitude:',flush=True)
+    for step in tqdm(range(0,int(startStepsAlt))):
         arduino.write(b'B')
         if step%100==00:
             print("orienting Alt",step)
