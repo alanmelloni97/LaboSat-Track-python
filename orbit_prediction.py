@@ -11,7 +11,7 @@ def DownloadTLEs():
     print("Downloading all active TLEs:")
     stations_url = 'https://celestrak.com/NORAD/elements/active.txt'
     satellites = load.tle_file(stations_url,reload=True)
-    print('Loaded', len(satellites), 'satellites',flush=True)
+    # print('Loaded', len(satellites), 'satellites',flush=True)
     print()
     return {sat.name: sat for sat in satellites}
 
@@ -85,8 +85,6 @@ def GetDistanceTwoCoords(lat1,lon1,lat2,lon2):
 
 def GetDatetimeFromUNIX(seconds):
     return datetime.datetime.fromtimestamp(seconds,datetime.timezone.utc)
-
-
 
 def NextSatPass(myLatLon,tStartOffset,minAltitude):
     ts = load.timescale()

@@ -79,7 +79,7 @@ def SatTrack(myLatLon,satName,stepperFullRes,microstepping,timeStep):
     t0 = ts.now()
     t1 = ts.from_datetime(t0.utc_datetime()+datetime.timedelta(days=1))
     bluffton = wgs84.latlon(myLatLon[0], myLatLon[1])
-    tx, events = satellite.find_events(bluffton, t0, t1, altitude_degrees=40)
+    tx, events = satellite.find_events(bluffton, t0, t1, altitude_degrees=0)
     
     #%%
     # me aseguro que el primer timestamp sea el de rise
@@ -93,10 +93,10 @@ def SatTrack(myLatLon,satName,stepperFullRes,microstepping,timeStep):
     
     #%%
     
-    del orbitDf['Altitude']
-    del orbitDf['Azimuth']
-    del orbitDf['dAlt']
-    del orbitDf['dAz']
+    # del orbitDf['Altitude']
+    # del orbitDf['Azimuth']
+    # del orbitDf['dAlt']
+    # del orbitDf['dAz']
     
     orbitDf=orbitDf.loc[~(orbitDf==0).all(axis=1)]
     orbitDf.to_csv("csv/StepperSteps.csv")
