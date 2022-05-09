@@ -1,6 +1,6 @@
 import LabosaTrack as lst
 
-orbit,start=lst.SatTrack((-30,-50),'ISS (ZARYA)',0.9,16,10,30)
+orbit,start=lst.SatTrack((-30,-50),'STARLINK-1695',0.9,16,10,30)
 
 a=0
 print("Select option:")

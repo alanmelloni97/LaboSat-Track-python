@@ -11,21 +11,19 @@ import math
     
     
 def Orbit2steps(orbitDf,stepperRes):
+    
     del orbitDf['Latitude']
     del orbitDf['Longitude']
     del orbitDf['Distance']
     del orbitDf['Height']
     orbitDf['dAlt'] = (orbitDf['Altitude'] - orbitDf['Altitude'].shift(1)).fillna(0)
     orbitDf['dAz'] = (orbitDf['Azimuth'] - orbitDf['Azimuth'].shift(1)).fillna(0)
-    # orbitDf['dAlt']=orbitDf['dAlt'].fillna(0)
-    # orbitDf['dAz']=orbitDf['dAz'].fillna(0)
     orbitDf['Step Alt']=0
     orbitDf['Step Az']=0
     orbitDf.index.name="Index"
     
     dirSetted= False
     azStepCount,azAngle,altStepCount,altAngle=0,0,0,0
-    print("converting orbit to steps")
     for ind in tqdm(orbitDf.index):
         
         if abs(orbitDf['dAz'][ind])>300:
@@ -125,7 +123,8 @@ def OnlineTracker(stepsDf,startDf,stepperFullRes,microstepping):
     print("megnetometer:",north,'°')
     magneticDeclination=-9.56                       #magnetic delclination from https://www.magnetic-declination.com/
     trueNorth=north-magneticDeclination           
-    azimuthStart=startDf["Azimuth"][0]-trueNorth
+    # azimuthStart=startDf["Azimuth"][0]-trueNorth
+    azimuthStart=startDf["Azimuth"][0]
     print('Azimuth:',azimuthStart,'°')
     
     if azimuthStart>180:

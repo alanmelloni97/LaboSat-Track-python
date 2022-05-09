@@ -72,7 +72,7 @@ def PredictOrbit(sat,myLatLon,startTime,PeriodInSeconds,timeUnit):
             index=[i], \
             columns=["Time","Latitude","Longitude","Height","Altitude","Azimuth","Distance"])
         df=pd.concat([df,df2])
-        df.to_csv("csv/trackedOrbit.csv")
+    df.to_csv("csv/trackedOrbit.csv")
     return df
     
 def IsSatInSunligth(sat,t):
@@ -88,12 +88,12 @@ def GetDatetimeFromUNIX(seconds):
 
 # def NextPass()
 
-def NextSatPasses(myLat,myLon,tStartOffset,tEndOffset,visibleAltitude):
+def NextSatPasses(myLatLon,tStartOffset,tEndOffset,visibleAltitude):
     ts = load.timescale()
     t0 = ts.from_datetime(ts.now().utc_datetime()+datetime.timedelta(minutes=tStartOffset))
     t1 = ts.from_datetime(t0.utc_datetime()+datetime.timedelta(minutes=tEndOffset))
     TLEs=DownloadTLEs()
-    bluffton = wgs84.latlon(myLat, myLon)
+    bluffton = wgs84.latlon(myLatLon[0],myLatLon[1])
     for key in TLEs.keys():
         satellite=SelectSat(TLEs,key)
         t, events = satellite.find_events(bluffton, t0, t1, altitude_degrees=visibleAltitude)
