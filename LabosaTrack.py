@@ -79,7 +79,7 @@ def SatTrack(myLatLon,satName,stepperFullRes,microstepping,timeStep):
     t0 = ts.now()
     t1 = ts.from_datetime(t0.utc_datetime()+datetime.timedelta(days=1))
     bluffton = wgs84.latlon(myLatLon[0], myLatLon[1])
-    tx, events = satellite.find_events(bluffton, t0, t1, altitude_degrees=0)
+    tx, events = satellite.find_events(bluffton, t0, t1, altitude_degrees=40)
     
     #%%
     # me aseguro que el primer timestamp sea el de rise
@@ -145,11 +145,10 @@ def OnlineTracker(stepsDf,startDf,stepperFullRes,microstepping):
         arduino.write(b'A')
         time.sleep(1/1000)
     
+    print()
     print('orienting Altitude:',flush=True)
     for step in tqdm(range(0,int(startStepsAlt))):
         arduino.write(b'B')
-        if step%100==00:
-            print("orienting Alt",step)
         time.sleep(1/1000)
         
     #set azimuth direction
