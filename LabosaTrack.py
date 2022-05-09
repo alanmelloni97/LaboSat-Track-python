@@ -111,36 +111,9 @@ def SatTrack(myLatLon,satName,stepperFullRes,microstepping,timeStep,minAltitude)
     print("--- %s seconds ---" % (time.time() - start_time))
     return orbitDf,startDf
 
-def Average(lst):
-    return sum(lst) / len(lst)
-
-def GetCompassData(serialDevice):
-    measures=[]  
-    measure='.'
-    while measure!='':    
-        serialDevice.write(b'S')
-        time.sleep(1)
-        measure = serialDevice.readline().decode('utf-8')
-        if measure!='':
-            measures.append(measure)
-    measures = [x.rstrip() for x in measures]   #remove '\r\n'
-    measures= [i.split() for i in measures]     #separate words
-    measuresX=[]
-    measuresY=[]
-    measuresZ=[]
-    for i in measures:  #get axis values
-        measuresX.append(int(i[1]))
-        measuresY.append(int(i[3]))
-        measuresZ.append(int(i[5]))
-    measuresX=Average(measuresX)
-    measuresY=Average(measuresY)
-    measuresZ=Average(measuresZ)
-    az= math.atan2(measuresX, measuresY) * 180 / math.pi;
-    if az<0: 
-        az=az+360
-    return az
-
+#%%
 def OnlineTracker(stepsDf,startDf,stepperFullRes,microstepping):
+
     stepperRes=stepperFullRes/microstepping
     arduino = serial.Serial(port='COM7', baudrate=115200, timeout=1, write_timeout=1)
     
@@ -213,7 +186,104 @@ def OnlineTracker(stepsDf,startDf,stepperFullRes,microstepping):
     print("Alt steps:",contAlt)
     
     arduino.close()
-    
+#%%
 def OfflineTracking(stepsDf,startDf,stepperFullRes,microstepping):
-    True
+    
+    f401re=serial.Serial(port='COM5', baudrate=115200, stopbits=1,timeout=2,write_timeout=1)
+    
+    def TxSerial(data):
+        Tx=str(data).encode()
+        Tx+=bytes(bufferSize-len(Tx))
+        f401re.write(Tx)
+    
+    startDf["Azimuth"][0]=math.trunc(startDf["Azimuth"][0]*1000)
+    startDf["Altitude"][0]=math.trunc(startDf["Altitude"][0]*1000)
+    startDf["AltDir Change"][0]=math.trunc(startDf["AltDir Change"][0]*1000)
+    startDf["Azimuth"]=startDf["Azimuth"].astype(int)
+    startDf["Altitude"]=startDf["Altitude"].astype(int)
+    startDf["AltDir Change"]=startDf["AltDir Change"].astype(int)
+    timepoints=(stepsDf["Time"]*1000).astype(int)
+    steppoints=(stepsDf["Steps"]).astype(int)
+    
+    f401re.reset_input_buffer()
+    f401re.reset_output_buffer()
+    bufferSize=10
+    
+    Rx=b'\x00'
+    while True:
+        Rx=f401re.read(1)
+        if Rx==b'\x01':
+            
+            # get current time with milliseconds=0
+            a=time.time()
+            while(time.time()<math.trunc(a)+1):
+                True
+            t=math.trunc(time.time())
+            # send current time
+            TxSerial(t)
+            print(t)
+            TxSerial('e')
+            
+            #Wait unit confirmation that RTC has been set
+            Rx=f401re.read(1)
+            if Rx==b'\x01':
+                # send amount of points
+                TxSerial(len(timepoints))
+                TxSerial('a')
+        
+                TxSerial('1'*10)
+                
+                # send start data
+                for i in range(len(startDf.columns)):
+                    TxSerial(startDf.iloc[0,i])
+        
+                # send timepoints
+                for i in range(len(timepoints)):
+                    TxSerial(timepoints.iloc[i])
+                    
+                TxSerial('2'*10)
+                
+                # send steppoints
+                for i in range(len(steppoints)):
+                    TxSerial(steppoints.iloc[i])
+                    
+                # send end communication message
+                TxSerial('3'*10)
+                TxSerial('b')
+                Rx=b'\x00'
+            f401re.reset_input_buffer()
+            f401re.reset_output_buffer()
+
+
+#%%     
+
+def GetCompassData(serialDevice):
+    
+    def Average(lst):
+        return sum(lst) / len(lst)
+    
+    measures=[]  
+    measure='.'
+    while measure!='':    
+        serialDevice.write(b'S')
+        time.sleep(1)
+        measure = serialDevice.readline().decode('utf-8')
+        if measure!='':
+            measures.append(measure)
+    measures = [x.rstrip() for x in measures]   #remove '\r\n'
+    measures= [i.split() for i in measures]     #separate words
+    measuresX=[]
+    measuresY=[]
+    measuresZ=[]
+    for i in measures:  #get axis values
+        measuresX.append(int(i[1]))
+        measuresY.append(int(i[3]))
+        measuresZ.append(int(i[5]))
+    measuresX=Average(measuresX)
+    measuresY=Average(measuresY)
+    measuresZ=Average(measuresZ)
+    az= math.atan2(measuresX, measuresY) * 180 / math.pi;
+    if az<0: 
+        az=az+360
+    return az
         
