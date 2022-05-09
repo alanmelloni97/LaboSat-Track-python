@@ -66,7 +66,7 @@ def PrintOrbitDf(orbitDf,startDf,azStepCount,altStepCount):
     print("Alt steps:",altStepCount)
     print("Az steps:",azStepCount)
 
-def SatTrack(myLatLon,satName,stepperFullRes,microstepping,timeStep,minAltitude):
+def SatTrack(myLatLon,satName,stepperFullRes,microstepping,timeStep):
     stepperRes=stepperFullRes/microstepping
     
     start_time = time.time()
@@ -74,12 +74,10 @@ def SatTrack(myLatLon,satName,stepperFullRes,microstepping,timeStep,minAltitude)
 
     TLEs=op.DownloadTLEs()
     satellite=op.SelectSat(TLEs,satName)
-    print(satellite)
     print("Time since epoch:",op.TimeSinceEpoch(satellite,ts.now()),end='\n\n')
     
     t0 = ts.now()
     t1 = ts.from_datetime(t0.utc_datetime()+datetime.timedelta(days=1))
-    op.CalculatePasses(satellite,myLatLon,t0,t1,minAltitude)
     bluffton = wgs84.latlon(myLatLon[0], myLatLon[1])
     tx, events = satellite.find_events(bluffton, t0, t1, altitude_degrees=0)
     
@@ -119,11 +117,11 @@ def OnlineTracker(stepsDf,startDf,stepperFullRes,microstepping):
     time.sleep(5)
 
     ### get azimuth start point
-    north=GetCompassData(arduino)                   #get magnetic north
-    print("megnetometer:",north,'°')
-    magneticDeclination=-9.56                       #magnetic delclination from https://www.magnetic-declination.com/
-    trueNorth=north-magneticDeclination           
-    # azimuthStart=startDf["Azimuth"][0]-trueNorth
+    # north=GetCompassData(arduino)                   #get magnetic north
+    # print("megnetometer:",north,'°')
+    # magneticDeclination=-9.56                       #magnetic delclination from https://www.magnetic-declination.com/
+    # trueNorth=north-magneticDeclination           
+    # # azimuthStart=startDf["Azimuth"][0]-trueNorth
     azimuthStart=startDf["Azimuth"][0]
     print('Azimuth:',azimuthStart,'°')
     

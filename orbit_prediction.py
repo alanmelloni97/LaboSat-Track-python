@@ -98,11 +98,5 @@ def NextSatPass(myLatLon,tStartOffset,minAltitude):
         satellite=SelectSat(TLEs,key)
         t, events = satellite.find_events(bluffton, t0, t1, altitude_degrees=minAltitude)
         if len(events)==3:
-            print(satellite)
-            for ti, event in zip(t, events):
-                
-                name = ('rise above '+str(minAltitude)+'°', 'culminate', 'set below '+str(minAltitude)+'°')[event]
-                print(ti.utc_strftime('%Y %b %d %H:%M:%S'), name)
             return satellite
         
-NextSatPass((-30,-50),10,50)
