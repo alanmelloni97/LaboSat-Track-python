@@ -18,8 +18,7 @@ def Orbit2steps(orbitDf,stepperRes):
     del orbitDf['Height']
     orbitDf['dAlt'] = (orbitDf['Altitude'] - orbitDf['Altitude'].shift(1)).fillna(0)
     orbitDf['dAz'] = (orbitDf['Azimuth'] - orbitDf['Azimuth'].shift(1)).fillna(0)
-    orbitDf['Step Alt']=0
-    orbitDf['Step Az']=0
+    orbitDf['Steps']=0
     orbitDf.index.name="Index"
     
     dirSetted= False
@@ -33,22 +32,22 @@ def Orbit2steps(orbitDf,stepperRes):
                 orbitDf['dAz'][ind]+=360
             
         azAngle+=abs(orbitDf['dAz'][ind])
-        if azAngle>=stepperRes:
+        while azAngle>=stepperRes:
             azStepCount+=1
             azAngle=azAngle-stepperRes
-            orbitDf['Step Az'][ind]=1
+            orbitDf['Steps'][ind]+=1
     
         altAngle+=abs(orbitDf['dAlt'][ind])
-        if altAngle>=stepperRes:
+        while altAngle>=stepperRes:
             altStepCount+=1
             altAngle=altAngle-stepperRes
-            orbitDf['Step Alt'][ind]=1
+            orbitDf['Steps'][ind]+=10
        
         if orbitDf['dAlt'][ind]<0 and dirSetted==False:
             AltDirChange=orbitDf['Time'][ind]
             dirSetted=True
            
-        if orbitDf['Step Alt'][ind]==0 and orbitDf['Step Az'][ind]==0:
+        if orbitDf['Steps'][ind]==0:
             orbitDf.drop([ind],axis=0,inplace=True)
             
     startData={'Azimuth':orbitDf['Azimuth'].iloc[0],'Altitude':orbitDf['Altitude'].iloc[0],'AzDir':int(np.sign(orbitDf['dAz'].iloc[0])),'AltDir Change':AltDirChange}
@@ -98,7 +97,7 @@ def SatTrack(myLatLon,satName,stepperFullRes,microstepping,timeStep):
     # del orbitDf['dAlt']
     # del orbitDf['dAz']
     
-    orbitDf=orbitDf.loc[~(orbitDf==0).all(axis=1)]
+    # orbitDf=orbitDf.loc[~(orbitDf==0).all(axis=1)]
     orbitDf.to_csv("csv/StepperSteps.csv")
     startDf.to_csv("csv/StepperStart.csv")
     
@@ -164,13 +163,13 @@ def OnlineTracker(stepsDf,startDf,stepperFullRes,microstepping):
         t=datetime.datetime.utcfromtimestamp(stepsDf["Time"].iloc[i])  #get utc time from UNIX time
         while datetime.datetime.utcnow()<=t:
             True
-        if stepsDf['Step Az'].iloc[i]==1:
+        while stepsDf['Steps'].iloc[i] % 10 >= 1:
             arduino.write(b'A')
-            contAz+=1
+            stepsDf['Steps'].iloc[i]-=1
             print("Az",contAz)
-        if stepsDf['Step Alt'].iloc[i]==1:
+        while stepsDf['Steps'].iloc[i] >= 10:
             arduino.write(b'B')
-            contAlt+=1
+            stepsDf['Steps'].iloc[i]-=10
             print("Alt",contAlt)
         if changedDir==False and t>=datetime.datetime.utcfromtimestamp(startDf['AltDir Change'][0]):
             arduino.write(b'F')

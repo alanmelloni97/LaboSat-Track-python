@@ -9,13 +9,12 @@ from skyfield.api import load, wgs84
 
 start_time = time.time()
 ts = load.timescale()
-myLat=-34.5873528
-myLon=-58.5201163
+myLatLon=(-34.5873528,-58.5201163)
 stepperFullRes=0.9
 microstepping=16
 stepperRes=stepperFullRes/microstepping
 t = ts.now()
-timeSteps=100
+timeSteps=1
 
 TLEs=op.DownloadTLEs()
 satellite=op.SelectSat(TLEs,'STARLINK-3206')
@@ -27,8 +26,8 @@ t0 = ts.now()
 taux=t0.utc_datetime()+datetime.timedelta(days=1)
 t1 = ts.from_datetime(taux)
 VisibleAltitude=10
-op.CalculatePasses(satellite,myLat,myLon,t0,t1,VisibleAltitude)
-bluffton = wgs84.latlon(myLat, myLon)
+op.CalculatePasses(satellite,myLatLon,t0,t1,VisibleAltitude)
+bluffton = wgs84.latlon(myLatLon[0],myLatLon[1])
 tx, events = satellite.find_events(bluffton, t0, t1, altitude_degrees=VisibleAltitude)
 
 #%%
@@ -39,7 +38,7 @@ while events[n]!=0:
     
 taux=tx.utc_datetime()
 taux=taux[n+2]-taux[n]
-orbitDf=op.PredictOrbit(satellite,myLat,myLon,tx[0],taux.seconds,timeSteps)
+orbitDf=op.PredictOrbit(satellite,myLatLon,tx[0],taux.seconds,timeSteps)
 
 del orbitDf['Latitude']
 del orbitDf['Longitude']

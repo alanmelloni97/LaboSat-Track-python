@@ -36,7 +36,7 @@ def configure_system():
     
     print("Select time between samples:")
     print("1) 100 ms (algorithm time ~ 20 sec [testing only]")
-    print("2) 10 ms  (algorithm time ~ 8 min [recommended]")
+    print("2) 10 ms  (algorithm time ~ 15 min [recommended]")
     print("3) 1 ms   (algorithm time ~ 40 min [only useful for orbits with altitude>80°]")
     timeStep=int(input())
     validValues={1,2,3,4}
