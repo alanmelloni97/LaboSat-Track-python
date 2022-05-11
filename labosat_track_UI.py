@@ -4,8 +4,9 @@ import pandas as pd
 
 
 myLatLon=(-34.587353,-58.520116)
-stepperRes=0.9
+stepperFullRes=0.9
 microstepping=16
+stepperRes=stepperFullRes/microstepping
 timeStep=10
 a=0
 orbit=pd.DataFrame()
@@ -16,7 +17,7 @@ print("Current configuration:")
 print("    Latitude:", myLatLon[0],"Longitude:",myLatLon[1])
 print("    Time between orbit samples:", 1000/timeStep,"milliseconds")
 print("    Steppers congiguration:")
-print("        -Step resolution:",stepperRes)
+print("        -Step resolution:",stepperFullRes)
 print("        -Microstepping:",microstepping,end="\n\n")
 
 def configure_system():
@@ -47,11 +48,11 @@ def configure_system():
     print("Select stepper's angle per step")
     print("1) 0.9°")
     print("2) 1.8°")
-    stepperRes=int(input())
+    stepperFullRes=int(input())
     validValues={1,2}
-    while(stepperRes not in validValues):
+    while(stepperFullRes not in validValues):
         print("Invalid entry, enter 0 or 1")
-        stepperRes=int(input())
+        stepperFullRes=int(input())
         
     print("Select microstepping used")
     print("1) None")
@@ -67,7 +68,7 @@ def configure_system():
         print("Invalid entry, select microstepping used")
         microstepping=int(input())
     
-    return myLatLon,timeStep,stepperRes,microstepping
+    return myLatLon,timeStep,stepperFullRes/microstepping
 
 while True:
         
@@ -91,27 +92,27 @@ while True:
     if a=='0':
         break
     elif a=='1':
-        myLatLon,timeStep,stepperRes,microstepping=configure_system()
+        myLatLon,timeStep,stepperRes=configure_system()
         
     elif a=='2':   
         print("Paste satellite name from https://celestrak.com/NORAD/elements/active.txt")
         satName=int(input())
-        orbit,start=lst.SatTrack(myLatLon,satName,stepperRes,microstepping,timeStep)
+        orbit,start=lst.SatTrack(myLatLon,satName,stepperFullRes,microstepping,timeStep)
         
     elif a=='3':
         print("Selecting closest satellite...")
         sat=op.NextSatPass(myLatLon,10,50)
         print("Satellite selected:",sat)
-        orbit,start=lst.SatTrack(myLatLon,sat.name,stepperRes,microstepping,timeStep)
+        orbit,start=lst.SatTrack(myLatLon,sat.name,stepperFullRes,microstepping,timeStep)
         satName=sat.name
       
     elif a=='4':
         print("Connecting with Arduino...")
-        lst.OnlineTracker(orbit,start,stepperRes,microstepping)
+        lst.OnlineTracker(orbit,start,stepperRes)
         
     elif a=='5':
         print("Sending orbit through serial port...")
-        lst.OfflineTracking(orbit,start,stepperRes,microstepping)
+        lst.OfflineTracking(orbit,start,stepperRes)
             
     else:
         print("Incorrect input")

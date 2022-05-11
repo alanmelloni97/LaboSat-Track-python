@@ -41,7 +41,7 @@ def Orbit2steps(orbitDf,stepperRes):
         while altAngle>=stepperRes:
             altStepCount+=1
             altAngle=altAngle-stepperRes
-            orbitDf['Steps'][ind]+=10
+            orbitDf['Steps'][ind]+=100
        
         if orbitDf['dAlt'][ind]<0 and dirSetted==False:
             AltDirChange=orbitDf['Time'][ind]
@@ -107,9 +107,9 @@ def SatTrack(myLatLon,satName,stepperFullRes,microstepping,timeStep):
     return orbitDf,startDf
 
 #%%
-def OnlineTracker(stepsDf,startDf,stepperFullRes,microstepping):
+def OnlineTracker(stepsDf,startDf,stepperRes):
 
-    stepperRes=stepperFullRes/microstepping
+
     arduino = serial.Serial(port='COM7', baudrate=115200, timeout=1, write_timeout=1)
     
     print('Waiting for arduino start-up...')
@@ -163,18 +163,21 @@ def OnlineTracker(stepsDf,startDf,stepperFullRes,microstepping):
         t=datetime.datetime.utcfromtimestamp(stepsDf["Time"].iloc[i])  #get utc time from UNIX time
         while datetime.datetime.utcnow()<=t:
             True
-        while stepsDf['Steps'].iloc[i] % 10 >= 1:
+        while stepsDf['Steps'].iloc[i] % 100 >= 1:
             arduino.write(b'A')
             stepsDf['Steps'].iloc[i]-=1
-            print("Az",contAz)
-        while stepsDf['Steps'].iloc[i] >= 10:
+            contAz+=1
+            
+        while stepsDf['Steps'].iloc[i] >= 100:
             arduino.write(b'B')
-            stepsDf['Steps'].iloc[i]-=10
-            print("Alt",contAlt)
+            stepsDf['Steps'].iloc[i]-=100
+            contAlt+=1
+            print("Alt",contAlt,end='\r')
         if changedDir==False and t>=datetime.datetime.utcfromtimestamp(startDf['AltDir Change'][0]):
             arduino.write(b'F')
             changedDir=True
             print("alt direction change",i)
+        print("Az:",contAz,"Alt:",contAlt,end='\r')
         i+=1
     
     print("pasada finalizada")
@@ -183,15 +186,10 @@ def OnlineTracker(stepsDf,startDf,stepperFullRes,microstepping):
     
     arduino.close()
 #%%
-def OfflineTracking(stepsDf,startDf,stepperFullRes,microstepping):
+def OfflineTracking(stepsDf,startDf,stepperRes):
     
     f401re=serial.Serial(port='COM5', baudrate=115200, stopbits=1,timeout=2,write_timeout=1)
-    
-    def TxSerial(data):
-        Tx=str(data).encode()
-        Tx+=bytes(bufferSize-len(Tx))
-        f401re.write(Tx)
-    
+
     startDf["Azimuth"][0]=math.trunc(startDf["Azimuth"][0]*1000)
     startDf["Altitude"][0]=math.trunc(startDf["Altitude"][0]*1000)
     startDf["AltDir Change"][0]=math.trunc(startDf["AltDir Change"][0]*1000)
@@ -202,53 +200,66 @@ def OfflineTracking(stepsDf,startDf,stepperFullRes,microstepping):
     steppoints=(stepsDf["Steps"]).astype(int)
     
     f401re.reset_input_buffer()
-    f401re.reset_output_buffer()
-    bufferSize=10
     
+    #%%
+    def TxSerial(data,dataSize):
+        Tx=str(data).encode()
+        Tx+=bytes(dataSize-len(Tx))
+        f401re.write(Tx)
+    #%%
+    print(startDf["AltDir Change"][0])
     Rx=b'\x00'
     while True:
+        TxSerial(1, 1)
         Rx=f401re.read(1)
+        print('recieved:',Rx)
         if Rx==b'\x01':
             
             # get current time with milliseconds=0
             a=time.time()
             while(time.time()<math.trunc(a)+1):
-                True
+                    True
             t=math.trunc(time.time())
             # send current time
-            TxSerial(t)
+            TxSerial(t,10)
             print(t)
-            TxSerial('e')
             
             #Wait unit confirmation that RTC has been set
             Rx=f401re.read(1)
-            if Rx==b'\x01':
+            if Rx==b'\x00':
+                print("Error: incorrect time received")
+                break
+            elif Rx==b'\x01':
+                
                 # send amount of points
-                TxSerial(len(timepoints))
-                TxSerial('a')
+                TxSerial(len(timepoints),10)
         
-                TxSerial('1'*10)
+                TxSerial('1'*9,10)
                 
                 # send start data
                 for i in range(len(startDf.columns)):
-                    TxSerial(startDf.iloc[0,i])
+                    TxSerial(startDf.iloc[0,i],10)
+                    
+                #send resolution data
+                TxSerial(stepperRes,10)
+        
         
                 # send timepoints
                 for i in range(len(timepoints)):
-                    TxSerial(timepoints.iloc[i])
+                    TxSerial(timepoints.iloc[i],10)
                     
-                TxSerial('2'*10)
+                TxSerial('2'*9,10)
                 
                 # send steppoints
                 for i in range(len(steppoints)):
-                    TxSerial(steppoints.iloc[i])
+                    TxSerial(steppoints.iloc[i],10)
                     
                 # send end communication message
-                TxSerial('3'*10)
-                TxSerial('b')
+                TxSerial('3'*9,10)
+                TxSerial('a',10)
                 Rx=b'\x00'
-            f401re.reset_input_buffer()
-            f401re.reset_output_buffer()
+                f401re.reset_input_buffer()
+                f401re.reset_output_buffer()
 
 
 #%%     
