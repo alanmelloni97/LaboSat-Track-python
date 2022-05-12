@@ -1,0 +1,17 @@
+'''
+
+PYTHON
+rutina offline tracking en UI
+declinacion magnetica
+evitar salir del archivo si no se puede abrir puerto serie
+
+STM32F4
+guardar en FLASH
+rutina que espera hasta el tiempo y gira los motores
+
+MEJORAS
+---ACHICAR EL TIEMPO DE ALGORITMO A MEDIDA QUE ALT LLEGA A 90, PARA TENER MAS
+PRESICIÓN DONDE LOS ANGULOS CAMBIAN RAPIDO
+""""
+    
+    

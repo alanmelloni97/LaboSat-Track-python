@@ -107,7 +107,7 @@ def SatTrack(myLatLon,satName,stepperFullRes,microstepping,timeStep):
     return orbitDf,startDf
 
 #%%
-def OnlineTracker(stepsDf,startDf,stepperRes):
+def OnlineTracker(stepsDf,startDf,stepperRes,magneticDeclination):
 
 
     arduino = serial.Serial(port='COM7', baudrate=115200, timeout=1, write_timeout=1)
@@ -115,13 +115,13 @@ def OnlineTracker(stepsDf,startDf,stepperRes):
     print('Waiting for arduino start-up...')
     time.sleep(5)
 
-    ### get azimuth start point
+    ## get azimuth start point
     # north=GetCompassData(arduino)                   #get magnetic north
     # print("megnetometer:",north,'°')
     # magneticDeclination=-9.56                       #magnetic delclination from https://www.magnetic-declination.com/
     # trueNorth=north-magneticDeclination           
     # # azimuthStart=startDf["Azimuth"][0]-trueNorth
-    azimuthStart=startDf["Azimuth"][0]
+    azimuthStart=startDf["Azimuth"][0]+magneticDeclination
     print('Azimuth:',azimuthStart,'°',flush=True)
     
     
@@ -177,7 +177,7 @@ def OnlineTracker(stepsDf,startDf,stepperRes):
             arduino.write(b'F')
             changedDir=True
             print("alt direction change",i)
-        print("Az:",contAz,"Alt:",contAlt,end='\r')
+        print("Az:",contAz,"Alt:",contAlt,end='\r\r')
         i+=1
     
     print("pasada finalizada")

@@ -8,6 +8,7 @@ stepperFullRes=0.9
 microstepping=16
 stepperRes=stepperFullRes/microstepping
 timeStep=10
+magneticDeclination=0
 a=0
 orbit=pd.DataFrame()
 satName=""
@@ -18,7 +19,9 @@ print("    Latitude:", myLatLon[0],"Longitude:",myLatLon[1])
 print("    Time between orbit samples:", 1000/timeStep,"milliseconds")
 print("    Steppers congiguration:")
 print("        -Step resolution:",stepperFullRes)
-print("        -Microstepping:",microstepping,end="\n\n")
+print("        -Microstepping:",microstepping)
+print("    Azimuth reference obtained with compass:",False,end="\n\n")
+
 
 def configure_system():
     
@@ -67,8 +70,21 @@ def configure_system():
     while(microstepping not in validValues):
         print("Invalid entry, select microstepping used")
         microstepping=int(input())
-    
-    return myLatLon,timeStep,stepperFullRes/microstepping
+    print("Is azimuth reference set with compass? y/n")
+    ans=input()
+    while(ans!='y' and ans!='n'):
+        print("Invalid entry, indicate y or n")
+        ans=input()
+    if ans=='y':
+        print("Indicate magnetic declination: https://www.magnetic-declination.com/")
+        magneticDeclination=input()
+        while abs(magneticDeclination)>90:
+            print("Invalid entry, set valid value")
+            magneticDeclination=input()
+    elif ans=='n':
+        magneticDeclination=0
+        
+    return myLatLon,timeStep,stepperFullRes/microstepping,magneticDeclination
 
 while True:
         
@@ -92,7 +108,7 @@ while True:
     if a=='0':
         break
     elif a=='1':
-        myLatLon,timeStep,stepperRes=configure_system()
+        myLatLon,timeStep,stepperRes,magneticDeclination=configure_system()
         
     elif a=='2':   
         print("Paste satellite name from https://celestrak.com/NORAD/elements/active.txt")
@@ -101,14 +117,14 @@ while True:
         
     elif a=='3':
         print("Selecting closest satellite...")
-        sat=op.NextSatPass(myLatLon,10,50)
+        sat=op.NextSatPass(myLatLon,10,45)
         print("Satellite selected:",sat)
         orbit,start=lst.SatTrack(myLatLon,sat.name,stepperFullRes,microstepping,timeStep)
         satName=sat.name
       
     elif a=='4':
         print("Connecting with Arduino...")
-        lst.OnlineTracker(orbit,start,stepperRes)
+        lst.OnlineTracker(orbit,start,stepperRes,magneticDeclination)
         
     elif a=='5':
         print("Sending orbit through serial port...")
