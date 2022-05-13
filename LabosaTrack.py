@@ -187,8 +187,8 @@ def OnlineTracker(stepsDf,startDf,stepperRes,magneticDeclination):
 #%%
 def OfflineTracking(stepsDf,startDf,stepperRes):
    
-    f401re=serial.Serial(port='COM5', baudrate=115200, stopbits=1,timeout=2,write_timeout=1)
-
+    f401re=serial.Serial(port='COM5', baudrate=115200,stopbits=1,timeout=2,write_timeout=1)
+    f401re.set_buffer_size(rx_size = 3000000, tx_size = 3000000)
     if 'Orbit Start' not in startDf:
         orbitStart=math.trunc(stepsDf['Time'].iloc[0])
         stepsDf['Time']-=orbitStart
@@ -234,7 +234,7 @@ def OfflineTracking(stepsDf,startDf,stepperRes):
             if Rx==b'\x00':
                 print("Error: incorrect time received")
                 break
-            elif Rx==b'\x01':
+            elif Rx==b'\x02':
                 
                 # send amount of points
                 TxSerial(len(timepoints),10)
@@ -256,10 +256,10 @@ def OfflineTracking(stepsDf,startDf,stepperRes):
                 # send steppoints
                 for i in range(len(steppoints)):
                     TxSerial(steppoints.iloc[i],10)
-                    
+
                 # send end communication message
                 TxSerial('3'*9,10)
-                TxSerial('a',10)
+                TxSerial('a'*10,10)
                 Rx=b'\x00'
                 f401re.reset_input_buffer()
                 f401re.reset_output_buffer()
