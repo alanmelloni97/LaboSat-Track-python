@@ -229,6 +229,10 @@ def OfflineTracking(stepsDf,startDf,stepperRes):
             TxSerial(t,10)
             print(t)
             
+            # send start time
+            TxSerial(startDf['Orbit Start'].iloc[0],10)
+            print(startDf['Orbit Start'].iloc[0])
+            
             #Wait unit confirmation that RTC has been set
             Rx=f401re.read(1)
             if Rx==b'\x00':
