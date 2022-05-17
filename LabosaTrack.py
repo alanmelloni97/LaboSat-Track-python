@@ -188,13 +188,11 @@ def OnlineTracker(stepsDf,startDf,stepperRes,magneticDeclination):
 def OfflineTracking(stepsDf,startDf,stepperRes):
    
     f401re=serial.Serial(port='COM5', baudrate=115200,stopbits=1,timeout=2,write_timeout=1)
-    f401re.set_buffer_size(rx_size = 3000000, tx_size = 3000000)
-    if 'Orbit Start' not in startDf:
-        orbitStart=math.trunc(stepsDf['Time'].iloc[0])
-        stepsDf['Time']-=orbitStart
-        startDf['AltDir Change']-=orbitStart
-        startDf.insert(loc=0,column="Orbit Start",value=orbitStart)
-    
+
+    orbitStart=math.trunc(stepsDf['Time'].iloc[0])
+    stepsDf['Time']-=orbitStart
+    startDf['AltDir Change']-=orbitStart
+
     startDf["Azimuth"][0]=math.trunc(startDf["Azimuth"][0]*1000)
     startDf["Altitude"][0]=math.trunc(startDf["Altitude"][0]*1000)
     startDf["AltDir Change"][0]=math.trunc(startDf["AltDir Change"][0]*1000)
@@ -215,7 +213,7 @@ def OfflineTracking(stepsDf,startDf,stepperRes):
     print(startDf["AltDir Change"][0])
     Rx=b'\x00'
     while True:
-        TxSerial(1, 1)
+        TxSerial('o', 1)
         Rx=f401re.read(1)
         print('recieved:',Rx)
         if Rx==b'\x01':
@@ -227,11 +225,11 @@ def OfflineTracking(stepsDf,startDf,stepperRes):
             t=math.trunc(time.time())
             # send current time
             TxSerial(t,10)
-            print(t)
             
             # send start time
-            TxSerial(startDf['Orbit Start'].iloc[0],10)
-            print(startDf['Orbit Start'].iloc[0])
+            TxSerial(orbitStart,10)
+
+            
             
             #Wait unit confirmation that RTC has been set
             Rx=f401re.read(1)
@@ -239,10 +237,9 @@ def OfflineTracking(stepsDf,startDf,stepperRes):
                 print("Error: incorrect time received")
                 break
             elif Rx==b'\x02':
-                
                 # send amount of points
                 TxSerial(len(timepoints),10)
-        
+
                 # send start data
                 for i in range(len(startDf.columns)):
                     TxSerial(startDf.iloc[0,i],10)
