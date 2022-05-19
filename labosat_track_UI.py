@@ -3,6 +3,10 @@ import LabosaTrack as lst
 import pandas as pd
 
 
+# manejar serial desde ui?
+#invertir timeStep values
+# fijarse lo de math.trunc
+
 myLatLon=(-34.587353,-58.520116)
 stepperFullRes=0.9
 microstepping=16
@@ -99,8 +103,9 @@ while True:
     print("1) Configure system")
     print("2) Select satellite by string")
     print("3) Select closest satellite")
-    print("4) Start tracking through serial port")
-    print("5) Send orbit data to microcontroller")
+    if not orbit.empty:
+        print("4) Start tracking through serial port")
+        print("5) Send orbit data to microcontroller")
     print("0) Exit")
     
     a=input()
@@ -123,10 +128,16 @@ while True:
         satName=sat.name
       
     elif a=='4':
+        if orbit.empty:
+            print("Incorrect input",end="\n\n")
+            continue
         print("Connecting with Arduino...")
         lst.OnlineTracker(orbit,start,stepperRes,magneticDeclination)
         
     elif a=='5':
+        if orbit.empty:
+            print("Incorrect input",end="\n\n")
+            continue
         print("Sending orbit through serial port...")
         lst.OfflineTracking(orbit,start,stepperRes)
             

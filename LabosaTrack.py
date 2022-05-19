@@ -108,8 +108,12 @@ def SatTrack(myLatLon,satName,stepperFullRes,microstepping,timeStep):
 #%%
 def OnlineTracker(stepsDf,startDf,stepperRes,magneticDeclination):
 
-
-    arduino = serial.Serial(port='COM7', baudrate=115200, timeout=1, write_timeout=1)
+    try:
+        arduino = serial.Serial(port='COM7', baudrate=115200, timeout=1, write_timeout=1)
+    except:
+        print("ERROR: Couldn't connect to serial port")
+        return
+    
     
     print('Waiting for arduino start-up...')
     time.sleep(5)
@@ -187,8 +191,11 @@ def OnlineTracker(stepsDf,startDf,stepperRes,magneticDeclination):
 #%%
 def OfflineTracking(stepsDf,startDf,stepperRes):
    
-    f401re=serial.Serial(port='COM5', baudrate=115200,stopbits=1,timeout=2,write_timeout=1)
-
+    try:
+        f401re=serial.Serial(port='COM5', baudrate=115200,stopbits=1,timeout=2,write_timeout=1)
+    except:
+        print("ERROR: Couldn't connect to serial port")
+        return
     orbitStart=math.trunc(stepsDf['Time'].iloc[0])
     stepsDf['Time']-=orbitStart
     startDf['AltDir Change']-=orbitStart
@@ -228,8 +235,6 @@ def OfflineTracking(stepsDf,startDf,stepperRes):
             
             # send start time
             TxSerial(orbitStart,10)
-
-            
             
             #Wait unit confirmation that RTC has been set
             Rx=f401re.read(1)
@@ -248,6 +253,7 @@ def OfflineTracking(stepsDf,startDf,stepperRes):
                 TxSerial(stepperRes,10)
         
                 TxSerial('1'*9,10)
+                
                 # send timepoints
                 for i in range(len(timepoints)):
                     TxSerial(timepoints.iloc[i],10)
@@ -268,33 +274,33 @@ def OfflineTracking(stepsDf,startDf,stepperRes):
 
 #%%     
 
-def GetCompassData(serialDevice):
+# def GetCompassData(serialDevice):
     
-    def Average(lst):
-        return sum(lst) / len(lst)
+#     def Average(lst):
+#         return sum(lst) / len(lst)
     
-    measures=[]  
-    measure='.'
-    while measure!='':    
-        serialDevice.write(b'S')
-        time.sleep(1)
-        measure = serialDevice.readline().decode('utf-8')
-        if measure!='':
-            measures.append(measure)
-    measures = [x.rstrip() for x in measures]   #remove '\r\n'
-    measures= [i.split() for i in measures]     #separate words
-    measuresX=[]
-    measuresY=[]
-    measuresZ=[]
-    for i in measures:  #get axis values
-        measuresX.append(int(i[1]))
-        measuresY.append(int(i[3]))
-        measuresZ.append(int(i[5]))
-    measuresX=Average(measuresX)
-    measuresY=Average(measuresY)
-    measuresZ=Average(measuresZ)
-    az= math.atan2(measuresX, measuresY) * 180 / math.pi;
-    if az<0: 
-        az=az+360
-    return az
+#     measures=[]  
+#     measure='.'
+#     while measure!='':    
+#         serialDevice.write(b'S')
+#         time.sleep(1)
+#         measure = serialDevice.readline().decode('utf-8')
+#         if measure!='':
+#             measures.append(measure)
+#     measures = [x.rstrip() for x in measures]   #remove '\r\n'
+#     measures= [i.split() for i in measures]     #separate words
+#     measuresX=[]
+#     measuresY=[]
+#     measuresZ=[]
+#     for i in measures:  #get axis values
+#         measuresX.append(int(i[1]))
+#         measuresY.append(int(i[3]))
+#         measuresZ.append(int(i[5]))
+#     measuresX=Average(measuresX)
+#     measuresY=Average(measuresY)
+#     measuresZ=Average(measuresZ)
+#     az= math.atan2(measuresX, measuresY) * 180 / math.pi;
+#     if az<0: 
+#         az=az+360
+#     return az
         

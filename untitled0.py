@@ -10,21 +10,20 @@ import LabosaTrack as lst
 import pandas as pd
 import serial
 import time
+import math
 
 
-def TxSerial(data,dataSize):
-        Tx=str(data).encode()
-        Tx+=bytes(dataSize-len(Tx))
-        device.write(Tx)
-        
+myLatLon=(-34.587353,-58.520116)
+stepperFullRes=0.9
+microstepping=16
+stepperRes=stepperFullRes/microstepping
+timeStep=1
+magneticDeclination=0
+a=0
+orbit=pd.DataFrame()
+satName=""
 
-device=serial.Serial(port='COM5', baudrate=115200,stopbits=1,timeout=2,write_timeout=1)
-
-while True:
-    Rx=device.read(1)
-    print('recieved:',Rx)
-    if Rx==b'\x01':
-        TxSerial(time.time())
-        TxSerial(time.time()+100)
-
- 
+sat=op.NextSatPass(myLatLon,10,45)
+orbit,start=lst.SatTrack(myLatLon,sat.name,stepperFullRes,microstepping,timeStep)
+lst.OfflineTracking(orbit,start,stepperRes)
+   
