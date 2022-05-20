@@ -9,8 +9,8 @@ import pandas as pd
 
 myLatLon=(-34.587353,-58.520116)
 stepperFullRes=0.9
-microstepping=16
-stepperRes=stepperFullRes/microstepping
+reduction=16
+stepperRes=stepperFullRes/reduction
 timeStep=1
 magneticDeclination=0
 a=0
@@ -22,8 +22,8 @@ print("Current configuration:")
 print("    Latitude:", myLatLon[0],"Longitude:",myLatLon[1])
 print("    Time between orbit samples:", 1000/timeStep,"milliseconds")
 print("    Steppers congiguration:")
-print("        -Step resolution:",stepperFullRes)
-print("        -Microstepping:",microstepping)
+print("        -Step reduction:",stepperFullRes)
+print("        -reduction:",reduction)
 print("    Azimuth reference obtained with compass:",False,end="\n\n")
 
 
@@ -61,7 +61,7 @@ def configure_system():
         print("Invalid entry, enter 0 or 1")
         stepperFullRes=int(input())
         
-    print("Select microstepping used")
+    print("Select reduction used")
     print("1) None")
     print("2) 2")
     print("3) 4")
@@ -70,10 +70,10 @@ def configure_system():
     print("6) 32")
     print("7) 64")
     validValues={1,2,3,4,5,6,7}
-    microstepping=int(input())
-    while(microstepping not in validValues):
-        print("Invalid entry, select microstepping used")
-        microstepping=int(input())
+    reduction=int(input())
+    while(reduction not in validValues):
+        print("Invalid entry, select reduction used")
+        reduction=int(input())
     print("Is azimuth reference set with compass? y/n")
     ans=input()
     while(ans!='y' and ans!='n'):
@@ -88,7 +88,7 @@ def configure_system():
     elif ans=='n':
         magneticDeclination=0
         
-    return myLatLon,timeStep,stepperFullRes/microstepping,magneticDeclination
+    return myLatLon,timeStep,stepperFullRes/reduction,magneticDeclination
 
 while True:
         
@@ -102,7 +102,7 @@ while True:
     print("Select option:")
     print("1) Configure system")
     print("2) Select satellite by string")
-    print("3) Select closest satellite")
+    print("3) Select closest satellite [For testing]")
     if not orbit.empty:
         print("4) Start tracking through serial port")
         print("5) Send orbit data to microcontroller")
@@ -118,13 +118,13 @@ while True:
     elif a=='2':   
         print("Paste satellite name from https://celestrak.com/NORAD/elements/active.txt")
         satName=int(input())
-        orbit,start=lst.SatTrack(myLatLon,satName,stepperFullRes,microstepping,timeStep)
+        orbit,start=lst.SatTrack(myLatLon,satName,stepperFullRes,reduction,timeStep)
         
     elif a=='3':
         print("Selecting closest satellite...")
         sat=op.NextSatPass(myLatLon,10,45)
         print("Satellite selected:",sat)
-        orbit,start=lst.SatTrack(myLatLon,sat.name,stepperFullRes,microstepping,timeStep)
+        orbit,start=lst.SatTrack(myLatLon,sat.name,stepperFullRes,reduction,timeStep)
         satName=sat.name
       
     elif a=='4':
