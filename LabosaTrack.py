@@ -217,7 +217,6 @@ def OfflineTracking(stepsDf,startDf,stepperRes):
         Tx+=bytes(dataSize-len(Tx))
         f401re.write(Tx)
     #%%
-    print(startDf["AltDir Change"][0])
     Rx=b'\x00'
     while True:
         TxSerial('o', 1)
@@ -228,7 +227,7 @@ def OfflineTracking(stepsDf,startDf,stepperRes):
             # get current time with milliseconds=0
             a=time.time()
             while(time.time()<math.trunc(a)+1):
-                    True
+                True
             t=math.trunc(time.time())
             # send current time
             TxSerial(t,10)
@@ -267,6 +266,12 @@ def OfflineTracking(stepsDf,startDf,stepperRes):
                 # send end communication message
                 TxSerial('3'*9,10)
                 TxSerial('a'*10,10)
+                
+                #if 1 received, end program
+                Rx=f401re.read(1)
+                if Rx==b'\x01':
+                    print("Data sent successfully!")
+                    break
                 Rx=b'\x00'
                 f401re.reset_input_buffer()
                 f401re.reset_output_buffer()

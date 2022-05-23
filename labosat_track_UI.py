@@ -22,8 +22,8 @@ print("Current configuration:")
 print("    Latitude:", myLatLon[0],"Longitude:",myLatLon[1])
 print("    Time between orbit samples:", 1000/timeStep,"milliseconds")
 print("    Steppers congiguration:")
-print("        -Step reduction:",stepperFullRes)
-print("        -reduction:",reduction)
+print("        -Step resolution:",stepperFullRes)
+print("        -Reduction:",reduction)
 print("    Azimuth reference obtained with compass:",False,end="\n\n")
 
 
@@ -140,6 +140,7 @@ while True:
             continue
         print("Sending orbit through serial port...")
         lst.OfflineTracking(orbit,start,stepperRes)
+        
             
     else:
         print("Incorrect input")

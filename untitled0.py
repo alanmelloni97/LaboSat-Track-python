@@ -25,5 +25,5 @@ satName=""
 
 sat=op.NextSatPass(myLatLon,10,45)
 orbit,start=lst.SatTrack(myLatLon,sat.name,stepperFullRes,microstepping,timeStep)
-# lst.OfflineTracking(orbit,start,stepperRes)
+lst.OfflineTracking(orbit,start,stepperRes)
    

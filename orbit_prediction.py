@@ -3,7 +3,6 @@ from skyfield.api import EarthSatellite
 import datetime
 import pandas as pd
 from tqdm import tqdm
-import geopy.distance
 
 def DownloadTLEs():
     #Download TLEs from all active satellites from celestrack.com
@@ -79,9 +78,6 @@ def IsSatInSunligth(sat,t):
     eph = load('de421.bsp')
     sunlit = sat.at(t).is_sunlit(eph)
     return sunlit
-
-def GetDistanceTwoCoords(lat1,lon1,lat2,lon2):
-    return geopy.distance.distance((lat1,lon1),(lat2,lon2)).km
 
 def GetDatetimeFromUNIX(seconds):
     return datetime.datetime.fromtimestamp(seconds,datetime.timezone.utc)
