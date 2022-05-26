@@ -48,8 +48,8 @@ def Orbit2steps(orbitDf,stepperRes):
            
         if orbitDf['Steps'][ind]==0:
             orbitDf.drop([ind],axis=0,inplace=True)
-            
-    startData={'Azimuth':orbitDf['Azimuth'].iloc[0],'Altitude':orbitDf['Altitude'].iloc[0],'AzDir':int(np.sign(orbitDf['dAz'].iloc[0])),'AltDir Change':AltDirChange}
+                
+    startData={'Azimuth':orbitDf['Azimuth'].iloc[0],'Altitude':orbitDf['Altitude'].iloc[0],'AzDir':int(np.sign(orbitDf['dAz'].iloc[0])),'AltDir Change':AltDirChange,'Stepper Res':stepperRes}
     startDf = pd.DataFrame(startData,index=[0])
     startDf.index.name="start"
     return orbitDf,startDf
@@ -109,7 +109,7 @@ def SatTrack(myLatLon,satName,stepperFullRes,microstepping,timeStep):
 def OnlineTracker(stepsDf,startDf,stepperRes,magneticDeclination):
 
     try:
-        arduino = serial.Serial(port='COM7', baudrate=115200, timeout=1, write_timeout=1)
+        arduino = serial.Serial(port='COM5', baudrate=115200, timeout=1, write_timeout=1)
     except:
         print("ERROR: Couldn't connect to serial port")
         return
@@ -203,14 +203,17 @@ def OfflineTracking(stepsDf,startDf,stepperRes):
     startDf["Azimuth"][0]=math.trunc(startDf["Azimuth"][0]*1000)
     startDf["Altitude"][0]=math.trunc(startDf["Altitude"][0]*1000)
     startDf["AltDir Change"][0]=math.trunc(startDf["AltDir Change"][0]*1000)
+    startDf["Stepper Res"][0]=math.trunc(startDf["Stepper Res"][0]*1000)
     startDf["Azimuth"]=startDf["Azimuth"].astype(int)
     startDf["Altitude"]=startDf["Altitude"].astype(int)
     startDf["AltDir Change"]=startDf["AltDir Change"].astype(int)
+    startDf["Stepper Res"][0]=startDf["Stepper Res"][0].astype(int)
+    
     timepoints=(stepsDf["Time"]*1000).astype(int)
     steppoints=(stepsDf["Steps"]).astype(int)
     
     f401re.reset_input_buffer()
-    
+    print(startDf)
     #%%
     def TxSerial(data,dataSize):
         Tx=str(data).encode()
@@ -235,14 +238,16 @@ def OfflineTracking(stepsDf,startDf,stepperRes):
             # send start time
             TxSerial(orbitStart,10)
             
+            # send amount of points
+            TxSerial(len(timepoints),10)
+            
             #Wait unit confirmation that RTC has been set
             Rx=f401re.read(1)
             if Rx==b'\x00':
                 print("Error: incorrect time received")
                 break
             elif Rx==b'\x02':
-                # send amount of points
-                TxSerial(len(timepoints),10)
+                
 
                 # send start data
                 for i in range(len(startDf.columns)):
@@ -251,7 +256,6 @@ def OfflineTracking(stepsDf,startDf,stepperRes):
                 #send resolution data
                 TxSerial(stepperRes,10)
         
-                TxSerial('1'*9,10)
                 
                 # send timepoints
                 for i in range(len(timepoints)):
