@@ -48,8 +48,14 @@ def Orbit2steps(orbitDf,stepperRes):
            
         if orbitDf['Steps'][ind]==0:
             orbitDf.drop([ind],axis=0,inplace=True)
+    
+    azimuthStart=orbitDf['Azimuth'].iloc[0]
+    if azimuthStart>180:
+        azimuthStart-=360
+    if azimuthStart<-180:
+        azimuthStart+=360
                 
-    startData={'Azimuth':orbitDf['Azimuth'].iloc[0],'Altitude':orbitDf['Altitude'].iloc[0],'AzDir':int(np.sign(orbitDf['dAz'].iloc[0])),'AltDir Change':AltDirChange,'Stepper Res':stepperRes}
+    startData={'Azimuth':azimuthStart,'Altitude':orbitDf['Altitude'].iloc[0],'AzDir':int(np.sign(orbitDf['dAz'].iloc[0])),'AltDir Change':AltDirChange,'Stepper Res':stepperRes}
     startDf = pd.DataFrame(startData,index=[0])
     startDf.index.name="start"
     return orbitDf,startDf
@@ -275,6 +281,7 @@ def OfflineTracking(stepsDf,startDf,stepperRes):
                 Rx=f401re.read(1)
                 if Rx==b'\x01':
                     print("Data sent successfully!")
+                    f401re.close()
                     break
                 Rx=b'\x00'
                 f401re.reset_input_buffer()
