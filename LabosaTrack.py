@@ -55,7 +55,7 @@ def Orbit2steps(orbitDf,stepperRes):
     if azimuthStart<-180:
         azimuthStart+=360
                 
-    startData={'Azimuth':azimuthStart,'Altitude':orbitDf['Altitude'].iloc[0],'AzDir':int(np.sign(orbitDf['dAz'].iloc[0])),'AltDir Change':AltDirChange,'Stepper Res':stepperRes}
+    startData={'AzDir':int(np.sign(orbitDf['dAz'].iloc[0])),'Azimuth':azimuthStart,'Altitude':orbitDf['Altitude'].iloc[0],'AltDir Change':AltDirChange,'Stepper Res':stepperRes}
     startDf = pd.DataFrame(startData,index=[0])
     startDf.index.name="start"
     return orbitDf,startDf
@@ -79,6 +79,7 @@ def SatTrack(myLatLon,satName,stepperFullRes,microstepping,timeStep):
     TLEs=op.DownloadTLEs()
     satellite=op.SelectSat(TLEs,satName)
     print("Time since epoch:",op.TimeSinceEpoch(satellite,ts.now()),flush=True)
+    print(satName)
     
     t0 = ts.now()
     t1 = ts.from_datetime(t0.utc_datetime()+datetime.timedelta(days=1))
@@ -197,11 +198,14 @@ def OnlineTracker(stepsDf,startDf,stepperRes,magneticDeclination):
 #%%
 def OfflineTracking(stepsDf,startDf,stepperRes):
    
+    print(op.GetDatetimeFromUNIX(stepsDf['Time'].iloc[0]))
+    
     try:
-        f401re=serial.Serial(port='COM5', baudrate=115200,stopbits=1,timeout=2,write_timeout=1)
+        f401re=serial.Serial(port='COM8', baudrate=9600,stopbits=1,timeout=1,write_timeout=1)
     except:
         print("ERROR: Couldn't connect to serial port")
         return
+
     orbitStart=math.trunc(stepsDf['Time'].iloc[0])
     stepsDf['Time']-=orbitStart
     startDf['AltDir Change']-=orbitStart
@@ -213,81 +217,65 @@ def OfflineTracking(stepsDf,startDf,stepperRes):
     startDf["Azimuth"]=startDf["Azimuth"].astype(int)
     startDf["Altitude"]=startDf["Altitude"].astype(int)
     startDf["AltDir Change"]=startDf["AltDir Change"].astype(int)
-    startDf["Stepper Res"][0]=startDf["Stepper Res"][0].astype(int)
+    startDf["Stepper Res"]=startDf["Stepper Res"].astype(int)
     
     timepoints=(stepsDf["Time"]*1000).astype(int)
-    steppoints=(stepsDf["Steps"]).astype(int)
+    steppoints=stepsDf["Steps"].astype(int)
     
+    data=startDf["Altitude"].to_list()+startDf['AltDir Change'].to_list()+ startDf["Stepper Res"].to_list()+timepoints.to_list()+steppoints.to_list()
     f401re.reset_input_buffer()
     print(startDf)
     #%%
-    def TxSerial(data,dataSize):
-        Tx=str(data).encode()
+    def TxSerial(Txdata):
+        f401re.write(Txdata.to_bytes(4,"big"))
+        
+    def TxSerial_atoi(Txdata,dataSize):
+        Tx=str(Txdata).encode()
         Tx+=bytes(dataSize-len(Tx))
         f401re.write(Tx)
     #%%
-    Rx=b'\x00'
+    n=0
+    cont=0
+    f401re.write(b'p')
+
     while True:
-        TxSerial('o', 1)
-        Rx=f401re.read(1)
-        print('recieved:',Rx)
-        if Rx==b'\x01':
-            
-            # get current time with milliseconds=0
-            a=time.time()
-            while(time.time()<math.trunc(a)+1):
+        while f401re.read(1)!=b'\x01':
+            True
+        if n==0:
+            now=time.time()
+            while(time.time() < math.trunc(now)+1):
                 True
             t=math.trunc(time.time())
-            # send current time
-            TxSerial(t,10)
-            
-            # send start time
-            TxSerial(orbitStart,10)
-            
-            # send amount of points
-            TxSerial(len(timepoints),10)
-            
-            #Wait unit confirmation that RTC has been set
-            Rx=f401re.read(1)
-            if Rx==b'\x00':
-                print("Error: incorrect time received")
-                break
-            elif Rx==b'\x02':
-                
-
-                # send start data
-                for i in range(len(startDf.columns)):
-                    TxSerial(startDf.iloc[0,i],10)
-                    
-                #send resolution data
-                TxSerial(stepperRes,10)
-        
-                
-                # send timepoints
-                for i in range(len(timepoints)):
-                    TxSerial(timepoints.iloc[i],10)
-                    
-                TxSerial('2'*9,10)
-                
-                # send steppoints
-                for i in range(len(steppoints)):
-                    TxSerial(steppoints.iloc[i],10)
-
-                # send end communication message
-                TxSerial('3'*9,10)
-                TxSerial('a'*10,10)
-                
-                #if 1 received, end program
-                Rx=f401re.read(1)
-                if Rx==b'\x01':
-                    print("Data sent successfully!")
-                    f401re.close()
-                    break
-                Rx=b'\x00'
-                f401re.reset_input_buffer()
-                f401re.reset_output_buffer()
-
-
+            TxSerial(t)
+            print(t)
+        elif n==1:
+            t=int(time.time())+60
+            TxSerial(t)
+            print(t)
+        elif n==2:
+            TxSerial(len(timepoints))
+        elif n==3:   
+           TxSerial_atoi(startDf["AzDir"].iloc[0],4)
+           TxSerial_atoi(startDf["Azimuth"].iloc[0],7)
+        elif n==4:
+            for i in data:
+                cont+=1
+                if(cont!=0 and cont % 1000 == 0):
+                    print(cont)
+                    while f401re.read(1)!=b'\x01':
+                        True        
+                TxSerial(i)
+                i+=1
+            break
+        n+=1
+    
+    
+    
+    
+    
+    
+    
+   
 #%%     
 
 # def GetCompassData(serialDevice):

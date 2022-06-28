@@ -10,8 +10,8 @@ import LabosaTrack as lst
 import pandas as pd
 import serial
 import time
+import numpy as np
 import math
-
 
 myLatLon=(-34.587353,-58.520116)
 stepperFullRes=0.9
@@ -26,4 +26,3 @@ satName=""
 sat=op.NextSatPass(myLatLon,10,45)
 orbit,start=lst.SatTrack(myLatLon,sat.name,stepperFullRes,microstepping,timeStep)
 lst.OfflineTracking(orbit,start,stepperRes)
-   
