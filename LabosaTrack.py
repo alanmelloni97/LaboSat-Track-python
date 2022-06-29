@@ -198,6 +198,8 @@ def OnlineTracker(stepsDf,startDf,stepperRes,magneticDeclination):
 #%%
 def OfflineTracking(stepsDf,startDf,stepperRes):
    
+    ALARM_OFFSET=60
+    
     print(op.GetDatetimeFromUNIX(stepsDf['Time'].iloc[0]))
     
     try:
@@ -206,7 +208,7 @@ def OfflineTracking(stepsDf,startDf,stepperRes):
         print("ERROR: Couldn't connect to serial port")
         return
 
-    orbitStart=math.trunc(stepsDf['Time'].iloc[0])
+    orbitStart=stepsDf['Time'].iloc[0]
     stepsDf['Time']-=orbitStart
     startDf['AltDir Change']-=orbitStart
 
@@ -242,6 +244,7 @@ def OfflineTracking(stepsDf,startDf,stepperRes):
         while f401re.read(1)!=b'\x01':
             True
         if n==0:
+            # current time
             now=time.time()
             while(time.time() < math.trunc(now)+1):
                 True
@@ -249,15 +252,20 @@ def OfflineTracking(stepsDf,startDf,stepperRes):
             TxSerial(t)
             print(t)
         elif n==1:
-            t=int(time.time())+60
+            # alarm time (int)
+            t=math.trunc(orbitStart)-ALARM_OFFSET
             TxSerial(t)
             print(t)
         elif n==2:
+            #alarm decimals
+            decimals=int(round(orbitStart-int(orbitStart),3)*1000)
+            TxSerial(decimals)
+        elif n==3:
             TxSerial(len(timepoints))
-        elif n==3:   
+        elif n==4:   
            TxSerial_atoi(startDf["AzDir"].iloc[0],4)
            TxSerial_atoi(startDf["Azimuth"].iloc[0],7)
-        elif n==4:
+        elif n==5:
             for i in data:
                 cont+=1
                 if(cont!=0 and cont % 1000 == 0):
@@ -269,13 +277,7 @@ def OfflineTracking(stepsDf,startDf,stepperRes):
             break
         n+=1
     
-    
-    
-    
-    
-    
-    
-   
+
 #%%     
 
 # def GetCompassData(serialDevice):
