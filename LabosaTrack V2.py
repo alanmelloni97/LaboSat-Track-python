@@ -76,9 +76,7 @@ def SatTrack(myLatLon,satName,stepperFullRes,microstepping,timeStep):
     start_time = time.time()
     ts = load.timescale()
 
-    TLEs=op.DownloadTLEs()
-    satellite=op.SelectSat(TLEs,satName)
-    print("Time since epoch:",op.TimeSinceEpoch(satellite,ts.now()),flush=True)
+    satellite=op.SelectSatFromName(satName)
     print(satName)
     
     t0 = ts.now()
