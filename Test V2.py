@@ -18,17 +18,19 @@ myLatLon=(-34.587353,-58.520116)
 stepperFullRes=0.9
 microstepping=16
 stepperRes=stepperFullRes/microstepping
-timeStep=5
+timeStep=1
 magneticDeclination=0
 a=0
 orbit=pd.DataFrame()
 satName=""
+ALARM_OFFSET_SECONDS=60
 
 try:
     serial_device=serial.Serial(port='COM8', baudrate=9600,stopbits=1,timeout=1,write_timeout=1)
 except:
     print("ERROR: Couldn't connect to serial port")
     sys.exit("Error message")
-
-orbit,start=lst.SatTrack(myLatLon,"ISS (ZARYA)",stepperFullRes,microstepping,timeStep)
-lst.SendOrbit(serial_device,orbit,start,stepperRes)
+    
+sat=op.NextSatPass(myLatLon,10,45)
+orbit,start=lst.SatTrack(myLatLon,sat.name,stepperFullRes,microstepping,timeStep)
+lst.SendOrbit(serial_device,orbit,start,stepperRes,ALARM_OFFSET_SECONDS)

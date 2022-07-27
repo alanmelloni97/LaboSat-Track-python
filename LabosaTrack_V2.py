@@ -150,12 +150,12 @@ def SerialSend(serial_device,orbitStart,stepsDf,startDf,alarm_offset):
                 True
             t=math.trunc(time.time())
             TxSerial(t)
-            print(t)
+            print("current time:",op.GetDatetimeFromUNIX(t))
         elif n==1:
             # alarm time (int)
             t=math.trunc(orbitStart)-alarm_offset
             TxSerial(t)
-            print(t)
+            print("alarm time:",op.GetDatetimeFromUNIX(t))
         elif n==2:
             #alarm decimals
             decimals=int(round(orbitStart-int(orbitStart),3)*1000)
@@ -178,12 +178,11 @@ def SerialSend(serial_device,orbitStart,stepsDf,startDf,alarm_offset):
         n+=1
     
     
-def SendOrbit(serial_device,stepsDf,startDf,stepperRes):
+def SendOrbit(serial_device,stepsDf,startDf,stepperRes,alarm_offset_seconds):
     
-    ALARM_OFFSET=60
     orbitStart,stepsDf,startDf=SendOrbit_init(stepsDf,startDf,stepperRes)
     print("Start serial transfer")
-    SerialSend(serial_device,orbitStart,stepsDf,startDf,ALARM_OFFSET)
+    SerialSend(serial_device,orbitStart,stepsDf,startDf,alarm_offset_seconds)
     print(startDf)
     
     
