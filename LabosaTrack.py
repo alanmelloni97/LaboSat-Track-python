@@ -1,4 +1,4 @@
-import orbit_prediction as op
+import orbit_prediction_V2 as op
 from skyfield.api import load, wgs84
 import time
 import datetime
@@ -70,143 +70,42 @@ def PrintOrbitDf(orbitDf,startDf,azStepCount,altStepCount):
     print("Alt steps:",altStepCount)
     print("Az steps:",azStepCount)
 
+def CalculateNextOrbit(sat,myLatLon,timestep,in_hours=48,min_altitude=10):
+     ts = load.timescale()
+     t0 = ts.now()
+     t1 = ts.from_datetime(t0.utc_datetime()+datetime.timedelta(hours=in_hours))
+     bluffton = wgs84.latlon(myLatLon[0], myLatLon[1])
+     tx, events = sat.find_events(bluffton, t0, t1, altitude_degrees=min_altitude)
+     
+     # me aseguro que el primer timestamp sea el de rise
+     n=0
+     while events[n]!=0:
+         n+=1
+     taux=tx.utc_datetime()
+     taux=taux[n+2]-taux[n]
+     
+     return op.PredictOrbit(sat,myLatLon,tx[n],taux.seconds,timestep)
+
+     
+     
 def SatTrack(myLatLon,satName,stepperFullRes,microstepping,timeStep):
     stepperRes=stepperFullRes/microstepping
-    
-    start_time = time.time()
-    ts = load.timescale()
 
-    TLEs=op.DownloadTLEs()
-    satellite=op.SelectSat(TLEs,satName)
-    print("Time since epoch:",op.TimeSinceEpoch(satellite,ts.now()),flush=True)
+    satellite=op.SelectSatFromName(satName)
     print(satName)
     
-    t0 = ts.now()
-    t1 = ts.from_datetime(t0.utc_datetime()+datetime.timedelta(days=1))
-    bluffton = wgs84.latlon(myLatLon[0], myLatLon[1])
-    tx, events = satellite.find_events(bluffton, t0, t1, altitude_degrees=0)
+    orbitDf=CalculateNextOrbit(satellite, myLatLon, timeStep,24,10)
+    orbitDf,startDf=Orbit2steps(orbitDf, stepperRes)
     
-    #%%
-    # me aseguro que el primer timestamp sea el de rise
-    n=0
-    while events[n]!=0:
-        n+=1
-    taux=tx.utc_datetime()
-    taux=taux[n+2]-taux[n]
-    orbitDf=op.PredictOrbit(satellite,myLatLon,tx[n],taux.seconds,timeStep)
-    orbitDf,startDf=Orbit2steps(orbitDf,stepperRes)
-    
-    #%%
-    
-    # del orbitDf['Altitude']
-    # del orbitDf['Azimuth']
-    # del orbitDf['dAlt']
-    # del orbitDf['dAz']
-    
-    # orbitDf=orbitDf.loc[~(orbitDf==0).all(axis=1)]
     orbitDf.to_csv("csv/StepperSteps.csv")
     startDf.to_csv("csv/StepperStart.csv")
-    
-    print()
-    print("Algorithm time:")
-    print("--- %s seconds ---" % (time.time() - start_time))
+
     return orbitDf,startDf
 
 #%%
-def OnlineTracker(stepsDf,startDf,stepperRes,magneticDeclination):
 
-    try:
-        arduino = serial.Serial(port='COM5', baudrate=115200, timeout=1, write_timeout=1)
-    except:
-        print("ERROR: Couldn't connect to serial port")
-        return
-    
-    
-    print('Waiting for arduino start-up...')
-    time.sleep(5)
-
-    ## get azimuth start point
-    # north=GetCompassData(arduino)                   #get magnetic north
-    # print("megnetometer:",north,'°')
-    # magneticDeclination=-9.56                       #magnetic delclination from https://www.magnetic-declination.com/
-    # trueNorth=north-magneticDeclination           
-    # # azimuthStart=startDf["Azimuth"][0]-trueNorth
-    azimuthStart=startDf["Azimuth"][0]+magneticDeclination
-    print('Azimuth:',azimuthStart,'°',flush=True)
-    
-    
-    if azimuthStart>180:
-        azimuthStart-=360
-    if azimuthStart<-180:
-        azimuthStart+=360
-        
-    # orient motors to initial angles
-    if azimuthStart>=0:
-        arduino.write(b'C')
-    if azimuthStart<0:
-        arduino.write(b'D')
-        
-    startStepsAz=azimuthStart/stepperRes
-    startStepsAlt=startDf["Altitude"][0]/stepperRes
-    
-    print('orienting Azimuth:',flush=True)
-    for step in tqdm(range(0,abs(int(startStepsAz)))):
-        arduino.write(b'A')
-        time.sleep(1/1000)
-    
-    print()
-    print('orienting Altitude:',flush=True)
-    for step in tqdm(range(0,int(startStepsAlt))):
-        arduino.write(b'B')
-        time.sleep(1/1000)
-        
-    #set azimuth direction
-    if startDf["AzDir"][0]==1:
-        arduino.write(b'C') #spin clockwise
-    if startDf["AzDir"][0]==-1:
-        arduino.write(b'D') #spin counterclockwise
-
-    contAz,contAlt,i=0,0,0
-    changedDir=False
-    print("waiting step...")
-    while i<=len(stepsDf.index)-1:
-        t=datetime.datetime.utcfromtimestamp(stepsDf["Time"].iloc[i])  #get utc time from UNIX time
-        while datetime.datetime.utcnow()<=t:
-            True
-        while stepsDf['Steps'].iloc[i] % 100 >= 1:
-            arduino.write(b'A')
-            stepsDf['Steps'].iloc[i]-=1
-            contAz+=1
-            
-        while stepsDf['Steps'].iloc[i] >= 100:
-            arduino.write(b'B')
-            stepsDf['Steps'].iloc[i]-=100
-            contAlt+=1
-            print("Alt",contAlt,end='\r')
-        if changedDir==False and t>=datetime.datetime.utcfromtimestamp(startDf['AltDir Change'][0]):
-            arduino.write(b'F')
-            changedDir=True
-            print("alt direction change",i)
-        print("Az:",contAz,"Alt:",contAlt,end='\r\r')
-        i+=1
-    
-    print("pasada finalizada")
-    print("Az steps:",contAz)
-    print("Alt steps:",contAlt)
-    
-    arduino.close()
-#%%
-def OfflineTracking(stepsDf,startDf,stepperRes):
-   
-    ALARM_OFFSET=60
-    
+def SendOrbit_init(stepsDf,startDf,stepperRes):
     print(op.GetDatetimeFromUNIX(stepsDf['Time'].iloc[0]))
-    
-    try:
-        f401re=serial.Serial(port='COM8', baudrate=9600,stopbits=1,timeout=1,write_timeout=1)
-    except:
-        print("ERROR: Couldn't connect to serial port")
-        return
 
     orbitStart=stepsDf['Time'].iloc[0]
     stepsDf['Time']-=orbitStart
@@ -220,28 +119,29 @@ def OfflineTracking(stepsDf,startDf,stepperRes):
     startDf["Altitude"]=startDf["Altitude"].astype(int)
     startDf["AltDir Change"]=startDf["AltDir Change"].astype(int)
     startDf["Stepper Res"]=startDf["Stepper Res"].astype(int)
+       
+    return orbitStart,stepsDf,startDf
     
-    timepoints=(stepsDf["Time"]*1000).astype(int)
-    steppoints=stepsDf["Steps"].astype(int)
-    
-    data=startDf["Altitude"].to_list()+startDf['AltDir Change'].to_list()+ startDf["Stepper Res"].to_list()+timepoints.to_list()+steppoints.to_list()
-    f401re.reset_input_buffer()
-    print(startDf)
-    #%%
+def SerialSend(serial_device,orbitStart,stepsDf,startDf,alarm_offset):
     def TxSerial(Txdata):
-        f401re.write(Txdata.to_bytes(4,"big"))
+        serial_device.write(Txdata.to_bytes(4,"big"))
         
     def TxSerial_atoi(Txdata,dataSize):
         Tx=str(Txdata).encode()
         Tx+=bytes(dataSize-len(Tx))
-        f401re.write(Tx)
-    #%%
+        serial_device.write(Tx)
+        
+    timepoints=(stepsDf["Time"]*1000).astype(int)
+    steppoints=stepsDf["Steps"].astype(int)
+    data=startDf["Altitude"].to_list()+startDf['AltDir Change'].to_list()+ startDf["Stepper Res"].to_list()+timepoints.to_list()+steppoints.to_list()
+
+    
     n=0
     cont=0
-    f401re.write(b'p')
+    serial_device.write(b'\x01')
 
     while True:
-        while f401re.read(1)!=b'\x01':
+        while serial_device.read(1)!=b'\x01':
             True
         if n==0:
             # current time
@@ -250,13 +150,12 @@ def OfflineTracking(stepsDf,startDf,stepperRes):
                 True
             t=math.trunc(time.time())
             TxSerial(t)
-            print(t)
+            print("current time:",op.GetDatetimeFromUNIX(t))
         elif n==1:
             # alarm time (int)
-            t=math.trunc(orbitStart)-100
-            # t+=80
+            t=math.trunc(orbitStart)-alarm_offset
             TxSerial(t)
-            print(t)
+            print("alarm time:",op.GetDatetimeFromUNIX(t))
         elif n==2:
             #alarm decimals
             decimals=int(round(orbitStart-int(orbitStart),3)*1000)
@@ -271,43 +170,19 @@ def OfflineTracking(stepsDf,startDf,stepperRes):
                 cont+=1
                 if(cont!=0 and cont % 1000 == 0):
                     print(cont)
-                    while f401re.read(1)!=b'\x01':
+                    while serial_device.read(1)!=b'\x01':
                         True        
                 TxSerial(i)
                 i+=1
             break
         n+=1
     
-
-#%%     
-
-# def GetCompassData(serialDevice):
     
-#     def Average(lst):
-#         return sum(lst) / len(lst)
+def SendOrbit(serial_device,stepsDf,startDf,stepperRes,alarm_offset_seconds):
     
-#     measures=[]  
-#     measure='.'
-#     while measure!='':    
-#         serialDevice.write(b'S')
-#         time.sleep(1)
-#         measure = serialDevice.readline().decode('utf-8')
-#         if measure!='':
-#             measures.append(measure)
-#     measures = [x.rstrip() for x in measures]   #remove '\r\n'
-#     measures= [i.split() for i in measures]     #separate words
-#     measuresX=[]
-#     measuresY=[]
-#     measuresZ=[]
-#     for i in measures:  #get axis values
-#         measuresX.append(int(i[1]))
-#         measuresY.append(int(i[3]))
-#         measuresZ.append(int(i[5]))
-#     measuresX=Average(measuresX)
-#     measuresY=Average(measuresY)
-#     measuresZ=Average(measuresZ)
-#     az= math.atan2(measuresX, measuresY) * 180 / math.pi;
-#     if az<0: 
-#         az=az+360
-#     return az
-        
+    orbitStart,stepsDf,startDf=SendOrbit_init(stepsDf,startDf,stepperRes)
+    print("Start serial transfer")
+    SerialSend(serial_device,orbitStart,stepsDf,startDf,alarm_offset_seconds)
+    print(startDf)
+    
+    

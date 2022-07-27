@@ -25,6 +25,10 @@ def SelectSat(TLEList,satName):
     satellite = TLEList[satName]
     return satellite
 
+def SelectSatFromName(satName):
+    TLEs=DownloadTLEs()
+    return SelectSat(TLEs,satName)
+
 def TimeSinceEpoch(sat,t):
     # t must be a Time object
     epoch=sat.epoch.utc_datetime()
